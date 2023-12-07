@@ -1,8 +1,17 @@
 package com.lin.controller;
 
+import com.google.code.kaptcha.Producer;
 import com.lin.entity.User;
 import com.lin.service.UserService;
 import com.lin.uitl.CommunityConstant;
+import com.lin.uitl.CommunityUtil;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,7 +21,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -20,10 +33,14 @@ import java.util.Map;
  * @DateTime: 2023/12/6
  **/
 @Controller
+
 public class LoginController implements CommunityConstant {
 
+    private static final Logger logger = LoggerFactory.getLogger(LoginController.class);
     @Autowired
     private UserService userService;
+    @Autowired
+    private Producer kapchaProducer;
 
     @RequestMapping(path = "/register",method = RequestMethod.GET)
     public String getRegisterPage() {
@@ -63,5 +80,26 @@ public class LoginController implements CommunityConstant {
             model.addAttribute("target", "/index");
         }
         return "site/operate-result";
+    }
+
+    @RequestMapping(path ="/kaptcha",method = RequestMethod.GET)
+    public void getKaptcher(HttpServletResponse response, HttpSession session) {
+        // 生成验证码
+        String text = kapchaProducer.createText();
+        BufferedImage image = kapchaProducer.createImage(text);
+
+        // 验证码存入session
+        session.setAttribute("kaptcha", text);
+
+
+        // 将图片输出给浏览器
+        response.setContentType("image/png");
+        try {
+            ServletOutputStream os = response.getOutputStream();
+            ImageIO.write(image, "png", os);
+        } catch (IOException e) {
+            logger.error("响应验证码失败：" + e.getMessage());
+        }
+
     }
 }
