@@ -10,16 +10,15 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.*;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -41,6 +40,8 @@ public class LoginController implements CommunityConstant {
     private UserService userService;
     @Autowired
     private Producer kapchaProducer;
+    @Value("${server.servlet.context-path}")
+    private String contextPath;
 
     @RequestMapping(path = "/register",method = RequestMethod.GET)
     public String getRegisterPage() {
@@ -51,7 +52,7 @@ public class LoginController implements CommunityConstant {
         return "site/login";
     }
     @RequestMapping(path = "/register",method = RequestMethod.POST)
-    public String register(Model model, @Validated User user) {
+    public String register(Model model, User user) {
         Map<String, Object> map = userService.register(user);
         if (map == null || map.isEmpty()) {
             model.addAttribute("msg", "注册成功，我们已经向您的邮箱发送了一份激活邮件，请您尽快激活~");
@@ -82,6 +83,11 @@ public class LoginController implements CommunityConstant {
         return "site/operate-result";
     }
 
+    /**
+     * 生成验证码用于显示
+     * @param response
+     * @param session
+     */
     @RequestMapping(path ="/kaptcha",method = RequestMethod.GET)
     public void getKaptcher(HttpServletResponse response, HttpSession session) {
         // 生成验证码
@@ -101,5 +107,54 @@ public class LoginController implements CommunityConstant {
             logger.error("响应验证码失败：" + e.getMessage());
         }
 
+    }
+
+    /**
+     *登陆的业务功能
+     * @param username
+     * @param password
+     * @param code
+     * @param rememberMe
+     * @param model
+     * @param response
+     * @return
+     */
+    @RequestMapping(path = "/login",method = RequestMethod.POST)
+    public String login( String username,  String password, String code, boolean rememberMe,
+                        Model model, HttpSession session, HttpServletResponse response) {
+        // 检查验证码
+        String kaptcha = (String) session.getAttribute("kaptcha");
+       if (StringUtils.isBlank(kaptcha) || StringUtils.isBlank(code) || !code.equalsIgnoreCase(kaptcha)){
+           model.addAttribute("codeMsg", "验证码不正确");
+           return "site/login";
+       }
+
+        // 检查账号密码
+        int expiredSeconds = rememberMe ? REMEMBER_EXPIRED_SECONDS : DEFAULT_EXPIRED_SECONDS;
+        Map<String, Object> map = userService.login(username, password, expiredSeconds);
+        if (map.containsKey("ticket")) {
+            Cookie cookie = new Cookie("ticket", map.get("ticket").toString());
+            cookie.setPath(contextPath);
+            cookie.setMaxAge(expiredSeconds);
+            response.addCookie(cookie);
+            return "redirect:/index";
+        } else {
+            model.addAttribute("usernameMsg", map.get("usernameMsg"));
+            model.addAttribute("passwordMsg", map.get("passwordMsg"));
+            return "site/login";
+        }
+
+    }
+
+    /**
+     * 退出功能
+     * @param ticket
+     * @return
+     */
+    @RequestMapping(path = "/logout",method = RequestMethod.GET)
+    public String logout(@CookieValue("ticket") String ticket) {
+        userService.logout(ticket);
+
+        return "redirect:/login";
     }
 }
