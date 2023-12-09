@@ -4,12 +4,10 @@ import com.google.code.kaptcha.Producer;
 import com.lin.entity.User;
 import com.lin.service.UserService;
 import com.lin.uitl.CommunityConstant;
-import com.lin.uitl.CommunityUtil;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,14 +15,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -43,15 +42,17 @@ public class LoginController implements CommunityConstant {
     @Value("${server.servlet.context-path}")
     private String contextPath;
 
-    @RequestMapping(path = "/register",method = RequestMethod.GET)
+    @RequestMapping(path = "/register", method = RequestMethod.GET)
     public String getRegisterPage() {
         return "site/register";
     }
-    @RequestMapping(path = "/login",method = RequestMethod.GET)
+
+    @RequestMapping(path = "/login", method = RequestMethod.GET)
     public String getLoginPage() {
         return "site/login";
     }
-    @RequestMapping(path = "/register",method = RequestMethod.POST)
+
+    @RequestMapping(path = "/register", method = RequestMethod.POST)
     public String register(Model model, User user) {
         Map<String, Object> map = userService.register(user);
         if (map == null || map.isEmpty()) {
@@ -66,8 +67,11 @@ public class LoginController implements CommunityConstant {
         }
     }
 
-//     url为:http://localhost:8080/fourm/activation/101/code
-    @RequestMapping(path ="/activation/{userId}/{code}",method = RequestMethod.GET)
+    /**
+     * 邮件激活账号业务
+     * url为:http://localhost:8080/fourm/activation/101/code
+     */
+    @RequestMapping(path = "/activation/{userId}/{code}", method = RequestMethod.GET)
     private String activation(Model model, @PathVariable int userId, @PathVariable String code) {
         int result = userService.activation(userId, code);
         if (result == ACTIVATION_SUCCESS) {
@@ -85,10 +89,11 @@ public class LoginController implements CommunityConstant {
 
     /**
      * 生成验证码用于显示
+     *
      * @param response
      * @param session
      */
-    @RequestMapping(path ="/kaptcha",method = RequestMethod.GET)
+    @RequestMapping(path = "/kaptcha", method = RequestMethod.GET)
     public void getKaptcher(HttpServletResponse response, HttpSession session) {
         // 生成验证码
         String text = kapchaProducer.createText();
@@ -111,23 +116,16 @@ public class LoginController implements CommunityConstant {
 
     /**
      *登陆的业务功能
-     * @param username
-     * @param password
-     * @param code
-     * @param rememberMe
-     * @param model
-     * @param response
-     * @return
      */
-    @RequestMapping(path = "/login",method = RequestMethod.POST)
-    public String login( String username,  String password, String code, boolean rememberMe,
+    @RequestMapping(path = "/login", method = RequestMethod.POST)
+    public String login(String username, String password, String code, boolean rememberMe,
                         Model model, HttpSession session, HttpServletResponse response) {
         // 检查验证码
         String kaptcha = (String) session.getAttribute("kaptcha");
-       if (StringUtils.isBlank(kaptcha) || StringUtils.isBlank(code) || !code.equalsIgnoreCase(kaptcha)){
-           model.addAttribute("codeMsg", "验证码不正确");
-           return "site/login";
-       }
+        if (StringUtils.isBlank(kaptcha) || StringUtils.isBlank(code) || !code.equalsIgnoreCase(kaptcha)) {
+            model.addAttribute("codeMsg", "验证码不正确");
+            return "site/login";
+        }
 
         // 检查账号密码
         int expiredSeconds = rememberMe ? REMEMBER_EXPIRED_SECONDS : DEFAULT_EXPIRED_SECONDS;

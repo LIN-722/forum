@@ -97,7 +97,7 @@ public class UserService {
         // 激活邮件
         Context context = new Context();
         context.setVariable("email", user.getEmail());
-        // url为:http://localhost:8080/fourm/activation/101/code
+        // url为:http://localhost:8080/community/activation/101/code
         String url = domain + contextPath + "/activation/" + user.getId() + "/" + user.getActivationCode();
         context.setVariable("url", url);
         String content = templateEngine.process("mail/activation", context);
@@ -188,5 +188,12 @@ public class UserService {
      */
     public LoginTicket findLoginTicket(String ticket) {
         return loginTicketMapper.selectByTicket(ticket);
+    }
+
+    /**
+     * 更新用户头像url的业务
+     */
+    public int updateHeader(int userId, String headerUrl) {
+        return userMapper.updateHeader(userId, headerUrl);
     }
 }
