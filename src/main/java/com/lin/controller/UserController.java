@@ -1,5 +1,6 @@
 package com.lin.controller;
 
+import com.lin.annotation.LoginRequired;
 import com.lin.entity.User;
 import com.lin.service.UserService;
 import com.lin.uitl.CommunityUtil;
@@ -45,6 +46,7 @@ public class UserController {
     /**
      * 获取设置页面
      */
+    @LoginRequired
     @RequestMapping(path = "/setting",method = RequestMethod.GET)
     public String getSettingPage(Model model) {
         return "site/setting";
@@ -53,6 +55,7 @@ public class UserController {
     /**
      * 更新头像：上传文件+更改路径
      */
+    @LoginRequired
     @RequestMapping(path = "/upload",method = RequestMethod.POST)
     public String uploadHeader( MultipartFile headerImage, Model model) {
         if (headerImage.isEmpty()) {
